@@ -1,4 +1,4 @@
-# jah - Jenkins at home
+# jah
 
 Jenkins at home (aka. jah) is a lightweight Jenkins installation based on docker containers that will setup a Jenkins environment to develop your CI/CD pipelines.
 
