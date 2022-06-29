@@ -1,8 +1,13 @@
-FROM slave-builder:1.0.0
+FROM slave-builder:1.1.0
 
 LABEL maintainer="Santiago Sales <sansaltar@gmail.com>"
 
-ENV GOLANG_VERSION 1.14.5
+ARG GOLANG_VERSION=1.18.2
+ARG PROTOC_VER=3.17.1
+ARG PROTOC_GEN_GO_VER=1.26.0
+ARG PROTOC_GEN_GO_GRPC_VER=1.1.0
+ARG GRPC_GATEWAY_VER=2.6.0
+ARG GOOGLEAPIS_VER=7e78ffde4b79125a0b42725f41153fb8841f9201
 
 # get golang binary
 RUN	wget -O go.tgz "https://golang.org/dl/go$GOLANG_VERSION.linux-amd64.tar.gz" 
@@ -17,4 +22,40 @@ ENV GOPATH /home/jenkins/go
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+# WORKDIR $GOPATH
+
+
+# Install protocol buffer compiler
+WORKDIR /tmp
+
+RUN apt-get update && apt-get -y install unzip
+RUN curl -OL "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VER}/protoc-${PROTOC_VER}-linux-x86_64.zip" && \
+    unzip -o protoc-${PROTOC_VER}-linux-x86_64.zip -d /usr/ bin/protoc && \
+    unzip -o protoc-${PROTOC_VER}-linux-x86_64.zip -d /usr/ include/* && \
+    rm protoc-${PROTOC_VER}-linux-x86_64.zip
+
+WORKDIR /tmp/builder-go
+RUN go mod init builder-go
+
+# Install the protoc plugin for Go
+RUN go get -d google.golang.org/protobuf/cmd/protoc-gen-go@v${PROTOC_GEN_GO_VER} && \
+    go install google.golang.org/protobuf/cmd/protoc-gen-go
+
+# Install the protoc plugin for gRPC in Go
+RUN go get -d google.golang.org/grpc/cmd/protoc-gen-go-grpc@v${PROTOC_GEN_GO_GRPC_VER} && \
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
+
+# Install gRPC Gateway for automatic generation of REST and OpenAPIv2
+RUN go get -d github.com/grpc-ecosystem/grpc-gateway/v2@v${GRPC_GATEWAY_VER} && \
+    go get -d github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@v${GRPC_GATEWAY_VER} && \
+    go get -d  github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@v${GRPC_GATEWAY_VER} && \
+    go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway && \
+    go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2
+
+# Get googleapis proto definitions
+RUN git clone --single-branch --branch master https://github.com/googleapis/googleapis.git /home/jenkins/ws/googleapis
+WORKDIR /home/jenkins/ws/googleapis
+RUN git reset --hard ${GOOGLEAPIS_VER}
+
+# Cleanup
 WORKDIR $GOPATH

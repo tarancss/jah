@@ -32,7 +32,7 @@ jah enables you to implement CI/CD pipelines in very reduced environments withou
 
 With jah you can just add your *Jenkinsfile* to your repositories and run your CI pipelines locally from your laptop.
 
-jah is ideal for small startups or development teams, normally just 1 developer and up to 2-3.
+jah is ideal for small startups or development teams, normally just one developer and up to two or three.
 
 
 ## Install
@@ -41,12 +41,12 @@ jah is ideal for small startups or development teams, normally just 1 developer 
 **Enable docker REST API**
 jah needs the docker REST API to trigger pipeline jobs in docker agent containers. If not done yet, you can enable docker's REST API by editing the file `/lib/systemd/system/docker.service` and change the ExecStart line to: 
 
-    ExecStart=/usr/bin/dockerd -H tcp://0.0.0.0:4243 -H unix:///var/run/docker.sock
+    ExecStart=/usr/bin/dockerd -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock
 
 See https://scriptcrunch.com/enable-docker-remote-api for more reference.
 You may choose a different port for docker REST API. Once done, restart your docker service and test it works:
 
-    $ curl http://localhost:4243/version
+    $ curl http://localhost:2375/version
 
 
 ### Setup
@@ -54,15 +54,18 @@ You may choose a different port for docker REST API. Once done, restart your doc
 **Jenkins server**
 jah uses a container running jenkins official image, we name it `jenkins`. To persist data if need to upgrade your container, we create a volume named `jenkins-data`. We may restrict the resource usage for the container, for instance limiting cpu to 0.5 cores, etc.
 If your git project repositories are hosted in a local filesystem (say `$HOME/ws/git`), you need to bind mount it. Otherwise, you may remove this mount.
+Set the JAVA_OPTS variable to allow access to local git servers.
 Your Jenkins server UI will be available at `http://localhost:8080`.
 ```
 $ docker pull jenkins/jenkins:lts 
 $ docker volume create jenkins-data 
-$ docker create --name jenkins --cpus 0.5 \ 
+$ docker create --name jenkins --cpus 0.5 \
   --mount type=bind,source=$HOME/ws/git,target=/gitserver,readonly \
   --mount source=jenkins-data,target=/var/jenkins_home \
+  --env JAVA_OPTS=-Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true \
   -p 8080:8080 -p 50000:50000 jenkins/jenkins:lts
 ```
+
 **Running Jenkins**
 Once your jah container running Jenkins server has been created, you may start it with:
 
@@ -91,7 +94,7 @@ Whilst possible, normally we do not want to install all the specific software to
 So first, we need to configure Jenkins docker agent. Go to `http://localhost:8080/configureClouds` and add a new cloud.
 Configure your docker cloud with the following:
 
- - Docker Host URI: use the docker REST API URI, ie. tcp://172.17.0.1:4243. You may obtain the IP address with: `$ ip addr show docker0`. Use the port you configured docker to listen to.
+ - Docker Host URI: use the docker REST API URI, ie. tcp://172.17.0.1:2375. You may obtain the IP address with: `$ ip addr show docker0`. Use the port you configured docker to listen to.
 
 Next, you need to configure the **docker agent template**:
 - Labels: this is the label you will need to specify in the Jenkinsfile, ie: go-slave.

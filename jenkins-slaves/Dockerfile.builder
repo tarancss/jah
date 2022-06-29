@@ -1,12 +1,12 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 LABEL maintainer="Santiago Sales <santiman625@gmail.com>"
 
 # Make sure the package repository is up to date.
 RUN apt update && \
-    apt-get install -qy git
+    apt-get install -qy git curl unzip make gcc
 # Install a basic SSH server
-RUN apt-get install -qy openssh-server && \
+RUN DEBIAN_FRONTEND="noninteractive" apt-get install -qy openssh-server && \
     sed -i 's|session    required     pam_loginuid.so|session    optional     pam_loginuid.so|g' /etc/pam.d/sshd && \
     mkdir -p /var/run/sshd
 
